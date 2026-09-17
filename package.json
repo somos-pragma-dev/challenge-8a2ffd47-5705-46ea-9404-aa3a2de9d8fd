@@ -1,0 +1,159 @@
+{
+  "name": "risk-engine-lmax",
+  "version": "1.0.0",
+  "description": "Motor de risk scoring en tiempo real para trading algorítmico con circuit breakers dinámicos",
+  "main": "src/main.cpp",
+  "author": "Pragma Engineering",
+  "license": "MIT",
+  "scripts": {
+    "build": "cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)",
+    "build:debug": "cmake -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build -j$(nproc)",
+    "clean": "rm -rf build",
+    "test": "cmake --build build --target tests && ./build/test/RiskEngineTest",
+    "test:verbose": "cmake --build build --target tests && ./build/test/RiskEngineTest -s",
+    "lint": "clang-tidy src/**/*.cpp -- -DCMAKE_CXX_CLANG_TIDY=/usr/bin/clang-tidy",
+    "format": "clang-format -i src/**/*.cpp src/**/*.h",
+    "run:risk-engine": "./build/src/main",
+    "replay": "./build/src/main --replay",
+    "benchmark": "cmake --build build --target benchmark && ./build/test/benchmark",
+    "coverage": "cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON && cmake --build build && lcov --capture --directory build --output-file coverage.info --include '*/src/*' && lcov --summary coverage.info"
+  },
+  "dependencies": {
+    "@aspect-dev/rules_js": "^0.30.0",
+    "aspect-build": "^0.1.0"
+  },
+  "devDependencies": {
+    "cmake": "^3.28.0",
+    "clang": "^18.0.0",
+    "clang-tidy": "^18.0.0",
+    "clang-format": "^18.0.0",
+    "lcov": "^1.15",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "build": {
+    "tool": "cmake",
+    "minCppStandard": "c++20",
+    "compiler": "gcc",
+    "compilerVersion": "13",
+    "cmakeOptions": {
+      "CMAKE_CXX_STANDARD": "20",
+      "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+      "CMAKE_CXX_EXTENSIONS": "OFF",
+      "CMAKE_BUILD_TYPE": "Release",
+      "ENABLE_TESTING": "ON",
+      "ENABLE_COVERAGE": "OFF",
+      "DISRUPTOR_VERSION": "4.0.0",
+      "JSON_VERSION": "3.11.2",
+      "SPDLOG_VERSION": "1.12.0"
+    },
+    "dependencies": {
+      "lmax-disruptor": {
+        "version": "4.0.0",
+        "source": "https://github.com/LMAX-Exchange/disruptor-cpp.git",
+        "build": "cmake"
+      },
+      "nlohmann-json": {
+        "version": "3.11.2",
+        "source": "https://github.com/nlohmann/json.git",
+        "headerOnly": true
+      },
+      "spdlog": {
+        "version": "1.12.0",
+        "source": "https://github.com/gabime/spdlog.git",
+        "headerOnly": false
+      },
+      "gtest": {
+        "version": "1.14.0",
+        "source": "https://github.com/google/googletest.git",
+        "build": "cmake"
+      },
+      "catch2": {
+        "version": "3.5.0",
+        "source": "https://github.com/catchorg/Catch2.git",
+        "headerOnly": true
+      }
+    }
+  },
+  "architecture": {
+    "pattern": "event-driven con ring buffer lock-free y sharding por instrumento",
+    "directories": {
+      "domain": "src/domain/",
+      "application": "src/application/",
+      "adapters": "src/adapters/",
+      "infrastructure": "src/infrastructure/",
+      "config": "config/",
+      "docs": "docs/",
+      "test": "test/"
+    },
+    "keyConventions": [
+      "Uso de std::atomic para estructuras lock-free en C++20, evitando mutex para garantizar latencia < 500 microsegundos p99.",
+      "Implementación de ring buffer con LMAX Disruptor 4.0 para manejo de eventos con baja latencia y alta concurrencia.",
+      "Sharding por instrumento para escalabilidad y consistencia entre múltiples motores de riesgo.",
+      "Modelo de VaR intraday con calibración dinámica de umbrales basada en volatilidad.",
+      "Circuit breakers implementados como máquinas de estado finitas para bloquear órdenes cuando la exposición supera umbrales.",
+      "Trazabilidad de decisiones de riesgo con timestamps precisos y logs inmutables para compliance MiFID II."
+    ]
+  },
+  "compliance": {
+    "mifid2": {
+      "enabled": true,
+      "auditLogPath": "logs/audit/",
+      "retentionDays": 2555,
+      "fields": ["timestamp", "traderId", "strategyId", "instrumentId", "orderId", "riskDecision", "exposure", "limit", "circuitBreakerState"]
+    }
+  },
+  "riskEngine": {
+    "latencyTargetUs": 500,
+    "p99Target": 500,
+    "shardingStrategy": "byInstrument",
+    "varModel": "intraday",
+    "calibration": "dynamic",
+    "circuitBreaker": {
+      "enabled": true,
+      "states": ["CLOSED", "OPEN", "HALF_OPEN"],
+      "thresholdMultiplier": 1.5,
+      "resetTimeoutMs": 5000
+    },
+    "killSwitch": {
+      "enabled": true,
+      "anomalyDetectionWindowMs": 60000,
+      "thresholdDeviation": 3.0
+    }
+  },
+  "engines": {
+    "available": [
+      {
+        "name": "gcc",
+        "version": "13.2.0",
+        "cxxStandard": "c++20"
+      },
+      {
+        "name": "clang",
+        "version": "18.1.0",
+        "cxxStandard": "c++20"
+      }
+    ],
+    "default": "gcc"
+  },
+  "keywords": [
+    "risk-engine",
+    "trading",
+    "algorithmic-trading",
+    "circuit-breaker",
+    "lock-free",
+    "low-latency",
+    "lmax-disruptor",
+    "mifid2",
+    "var",
+    "real-time-risk"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pragma-engineering/risk-engine-lmax"
+  },
+  "bugs": {
+    "url": "https://github.com/pragma-engineering/risk-engine-lmax/issues"
+  },
+  "homepage": "https://github.com/pragma-engineering/risk-engine-lmax#readme"
+}

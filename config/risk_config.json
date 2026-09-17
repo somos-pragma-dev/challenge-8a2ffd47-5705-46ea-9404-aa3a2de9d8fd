@@ -1,0 +1,236 @@
+{
+  "riskEngine": {
+    "name": "RiskEngineLmax",
+    "version": "1.0.0",
+    "latency": {
+      "targetP50Microseconds": 150,
+      "targetP99Microseconds": 500,
+      "targetP999Microseconds": 1000,
+      "timeoutMs": 5000
+    },
+    "sharding": {
+      "strategy": "byInstrument",
+      "maxShards": 256,
+      "rebalanceIntervalMs": 60000,
+      "consistentHashing": true
+    }
+  },
+  "varModel": {
+    "modelType": "intraday",
+    "confidenceLevel": 0.99,
+    "horizonMinutes": 1,
+    "calibration": {
+      "method": "dynamic",
+      "windowSize": 100,
+      "decayFactor": 0.95,
+      "minObservations": 50,
+      "updateFrequencyMs": 1000
+    },
+    "scaling": {
+      "enabled": true,
+      "method": "exponential",
+      "volatilityLookbackMs": 300000,
+      "minVolatility": 0.0001,
+      "maxVolatility": 0.5
+    }
+  },
+  "limits": {
+    "trader": {
+      "maxExposureUsd": 10000000,
+      "maxPositionSize": 1000000,
+      "maxOrdersPerSecond": 100,
+      "maxOrderValueUsd": 5000000,
+      "dailyLossLimitUsd": 500000,
+      "maxDrawdownUsd": 1000000
+    },
+    "strategy": {
+      "maxExposureUsd": 5000000,
+      "maxPositionSize": 500000,
+      "maxOrdersPerSecond": 50,
+      "maxOrderValueUsd": 2500000,
+      "dailyLossLimitUsd": 250000,
+      "maxDrawdownUsd": 500000
+    },
+    "instrument": {
+      "maxExposureUsd": 2000000,
+      "maxPositionSize": 200000,
+      "maxOrdersPerSecond": 20,
+      "maxOrderValueUsd": 1000000,
+      "maxDailyVolumePct": 0.05,
+      "maxMarketImpact": 0.01
+    },
+    "global": {
+      "maxTotalExposureUsd": 100000000,
+      "maxConcurrentOrders": 10000,
+      "maxPositions": 5000,
+      "maxStrategies": 200,
+      "maxTraders": 50
+    }
+  },
+  "circuitBreaker": {
+    "enabled": true,
+    "states": ["CLOSED", "OPEN", "HALF_OPEN"],
+    "transition": {
+      "closedToOpenThresholdMultiplier": 1.5,
+      "closedToOpenTimeWindowMs": 60000,
+      "openToHalfOpenTimeoutMs": 5000,
+      "halfOpenToOpenThresholdMultiplier": 0.8,
+      "halfOpenMaxAttempts": 3
+    },
+    "thresholds": {
+      "exposureBreachPct": 0.95,
+      "lossBreachPct": 0.8,
+      "volatilityBreachMultiplier": 2.0,
+      "latencyBreachMs": 10,
+      "errorRateBreachPct": 0.1
+    },
+    "recovery": {
+      "resetTimeoutMs": 5000,
+      "gradualReentry": true,
+      "maxOrderRateDuringRecovery": 10
+    },
+    "perInstrument": {
+      "enabled": true,
+      "maxConsecutiveRejections": 5,
+      "cooldownMs": 30000
+    }
+  },
+  "killSwitch": {
+    "enabled": true,
+    "detection": {
+      "anomalyDetectionWindowMs": 60000,
+      "thresholdDeviation": 3.0,
+      "minSampleSize": 100,
+      "metrics": ["latency", "orderRate", "errorRate", "positionDelta"]
+    },
+    "actions": {
+      "cancelAllOrders": true,
+      "closeAllPositions": true,
+      "notifyRiskCommittee": true,
+      "disableStrategy": true,
+      "freezeTrader": false
+    },
+    "thresholds": {
+      "latencyP99Multiplier": 5.0,
+      "orderRateMultiplier": 3.0,
+      "errorRatePct": 0.25,
+      "positionDeltaMultiplier": 4.0,
+      "lossRateUsdPerSecond": 100000
+    },
+    "escalation": {
+      "autoEnableAfterMs": 300000,
+      "manualOverrideRequired": true,
+      "notificationChannels": ["email", "slack", "pagerduty"]
+    }
+  },
+  "marketData": {
+    "feed": {
+      "provider": "multi",
+      "sources": ["exchangeA", "exchangeB", "broker"],
+      "fallbackEnabled": true,
+      "maxLatencyMs": 100
+    },
+    "orderbook": {
+      "depth": 10,
+      "updateFrequencyHz": 100,
+      "snapshotIntervalMs": 1000
+    },
+    "price": {
+      "staleThresholdMs": 500,
+      "useMidPrice": true,
+      "volumeWeighted": false
+    }
+  },
+  "compliance": {
+    "mifid2": {
+      "enabled": true,
+      "auditLogPath": "logs/audit/",
+      "retentionDays": 2555,
+      "fields": [
+        "timestamp",
+        "traderId",
+        "strategyId",
+        "instrumentId",
+        "orderId",
+        "riskDecision",
+        "exposure",
+        "limit",
+        "circuitBreakerState"
+      ],
+      "encryption": {
+        "enabled": true,
+        "algorithm": "AES-256-GCM"
+      },
+      "tamperProof": {
+        "enabled": true,
+        "hashAlgorithm": "SHA-256"
+      }
+    },
+    "recordRetention": {
+      "tradeLogsYears": 7,
+      "auditLogsYears": 10,
+      "configurationYears": 5
+    }
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "outputs": [
+      {
+        "type": "file",
+        "path": "logs/risk-engine.log",
+        "rotation": "daily",
+        "maxSizeMb": 500,
+        "retentionDays": 30
+      },
+      {
+        "type": "audit",
+        "path": "logs/audit/risk-decisions.log",
+        "rotation": "hourly",
+        "maxSizeMb": 1000,
+        "retentionDays": 2555
+      },
+      {
+        "type": "console",
+        "level": "warn"
+      }
+    ]
+  },
+  "throttling": {
+    "enabled": true,
+    "global": {
+      "maxOrdersPerSecond": 10000,
+      "maxNotionalPerSecond": 100000000,
+      "burstAllowance": 1.2
+    },
+    "perTrader": {
+      "maxOrdersPerSecond": 100,
+      "maxNotionalPerSecond": 10000000
+    },
+    "perInstrument": {
+      "maxOrdersPerSecond": 500,
+      "maxNotionalPerSecond": 50000000
+    }
+  },
+  "riskMetrics": {
+    "calculationIntervalMs": 100,
+    "aggregationWindowMs": 60000,
+    "metrics": [
+      "exposure",
+      "var",
+      "delta",
+      "gamma",
+      "vega",
+      "theta"
+    ],
+    "realTime": {
+      "enabled": true,
+      "publishIntervalMs": 1000
+    },
+    "historical": {
+      "enabled": true,
+      "storageDays": 90,
+      "samplingFrequencyMs": 100
+    }
+  }
+}
